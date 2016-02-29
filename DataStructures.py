@@ -14,6 +14,8 @@ class Vertex:
     def __str__(self):
         return "%f %f %f\n"%(self.x,self.y,self.z)
 
+    def repr(self):
+        return str(self)
 
 class Triangle:
     #triangle indices
@@ -25,9 +27,21 @@ class Triangle:
     def __str__(self):
         return "3 %d %d %d\n"%(self.a, self.b, self.c)
 
+    def __repr__(self):
+        return "{} {} {}".format(self.a, self.b, self.c)
 
-class Cube:
-    def __init__(self, dimension):
+
+class GridCell:
+    def __init__(self, vertices_position, vertices_values = None):
+        if vertices_values is None:
+            self.values = [0, 0, 0, 0, 0, 0, 0, 0]
+        else:
+            self.values = vertices_values
+        self.positions = vertices_position
+
+
+    def __repr__(self):
+        return "cell"
 
 
 class BoundingBox:
@@ -67,31 +81,3 @@ class BoundingBox:
 
     def __str__(self):
         return "Min Corner: " + str(self.min_corner) + " Max Corner: " + str(self.max_corner)
-
-
-
-
-def vertex_interpolation(isovalue, p1, p2):
-    
-
-XYZ VertexInterp(isolevel,p1,p2,valp1,valp2)
-double isolevel;
-XYZ p1,p2;
-double valp1,valp2;
-{
-   double mu;
-   XYZ p;
-
-   if (ABS(isolevel-valp1) < 0.00001)
-      return(p1);
-   if (ABS(isolevel-valp2) < 0.00001)
-      return(p2);
-   if (ABS(valp1-valp2) < 0.00001)
-      return(p1);
-   mu = (isolevel - valp1) / (valp2 - valp1);
-   p.x = p1.x + mu * (p2.x - p1.x);
-   p.y = p1.y + mu * (p2.y - p1.y);
-   p.z = p1.z + mu * (p2.z - p1.z);
-
-   return(p);
-}
