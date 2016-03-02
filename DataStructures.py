@@ -1,3 +1,5 @@
+import math
+
 class DepthMap:
     def __init__(self, points, width, height):
         self.points = points
@@ -10,6 +12,21 @@ class Vertex:
         self.x = x
         self.y = y
         self.z = z
+
+    def __add__(self, rhs):
+        return Vertex(self.x + rhs.x, self.y + rhs.y, self.z + rhs.z)
+
+    def invert(self):
+        return Vertex(-self.x, -self.y, -self.z)
+
+    def __sub__(self, rhs):
+        return Vertex(self.x - rhs.x, self.y - rhs.y, self.z - rhs.z)
+
+    def __mul__(self, rhs):
+        return self.x * rhs.x + self.y * rhs.y + self.z * rhs.z
+
+    def distance(lhs, rhs):
+        return math.sqrt((lhs.x - rhs.x)**2 + (lhs.y - rhs.y)**2 + (lhs.z - rhs.z)**2)
 
     def __str__(self):
         return "%f %f %f\n"%(self.x,self.y,self.z)
@@ -77,7 +94,6 @@ class BoundingBox:
 
     def indices(self):
         return [str(i) for i in self.faces]
-
 
     def __str__(self):
         return "Min Corner: " + str(self.min_corner) + " Max Corner: " + str(self.max_corner)

@@ -12,9 +12,7 @@ def makeGrid(box_volume, max_cells):
     cell_dimension = greatest_dimension/max_cells
     print("cell_dimension: ", cell_dimension)
 
-
     x = min_corner[0]
-    #print(x, y, z)
     volume_of_cubes = []
     while x < max_corner[0]:
         square_of_cubes = []
@@ -35,7 +33,6 @@ def makeGrid(box_volume, max_cells):
                     vertices_positions.append(Vertex(x, y + cell_dimension, z + cell_dimension))
                 row_of_cubes.append(GridCell(vertices_positions))
                 z += cell_dimension
-                #print(x, y, z)
             square_of_cubes.append(row_of_cubes)
             y += cell_dimension
         volume_of_cubes.append(square_of_cubes)
@@ -45,19 +42,12 @@ def makeGrid(box_volume, max_cells):
 
 
 def assign_values(grid, function):
-    #print("dim i ", len(grid))
-    #print("dim j", len(grid[0]))
-    #print("dim k", len(grid[0][0]))
-
-    #print(grid)
     for i in range(len(grid)):
         for j in range(len(grid[0])):
             for k in range(len(grid[0][0])):
-                #print(i, j, k)
                 cell = grid[i][j][k]
                 for u in range(8):
                     value = function(cell.positions[u].x, cell.positions[u].y, cell.positions[u].z)
-                    #print(value)
                     cell.values[u] = value
 
 # special case when s1 <= isovalue <= s2 or s2 <= isovalue <= s1
@@ -75,6 +65,19 @@ def vertex_interpolation(isovalue, p1, p2, s1, s2):
     r.y = (1-alfa)*p1.y + alfa*p2.y
     r.z = (1-alfa)*p1.z + alfa*p2.z
     return r
+
+
+def triangle_intersection(v1, v2, triangle_vertices):
+    #TODO: code a proper triangle segment intercetion
+    has_intersection = False
+    intersection_point = Vertex(0, 0, 0)
+    if has_intersection:
+        return intersection_point
+
+    return None
+
+def signed_distance(cell, triangle):
+    
 
 def polygonise_cube(cell, isovalue, vertices, triangles):
     vertlist = 12*[None]
@@ -132,19 +135,17 @@ def polygonise_cube(cell, isovalue, vertices, triangles):
 
     # Create the triangles
     i = 0
-    ntri = 0
+    triangles_count = 0
     while triTable[cubeindex][i] != -1:
         vertices.append(vertlist[triTable[cubeindex][i] ])
         vertices.append(vertlist[triTable[cubeindex][i+1]])
         vertices.append(vertlist[triTable[cubeindex][i+2]])
-        ntri += 1
+        triangles_count += 1
         i += 3
         triangles.append(Triangle(len(triangles)*3 + 2, len(triangles)*3 + 1, len(triangles)*3))
 
-    # if len(vertices) > 0:
-    #     print(vertices)
 
-    return ntri
+    return triangles_count
 
 
 def sphere(x, y, z):
