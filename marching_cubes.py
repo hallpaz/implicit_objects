@@ -1,6 +1,7 @@
 import operator
 from LookUpTables import edgeTable, triTable
 from DataStructures import BoundingBox, GridCell, Vertex, Triangle
+from naive_mesh import generateOFF
 
 
 
@@ -50,6 +51,8 @@ def assign_values(grid, function):
                     value = function(cell.positions[u].x, cell.positions[u].y, cell.positions[u].z)
                     cell.values[u] = value
 
+
+
 # special case when s1 <= isovalue <= s2 or s2 <= isovalue <= s1
 def vertex_interpolation(isovalue, p1, p2, s1, s2):
     if abs(isovalue - s1) < 0.00001:
@@ -67,17 +70,94 @@ def vertex_interpolation(isovalue, p1, p2, s1, s2):
     return r
 
 
-def triangle_intersection(v1, v2, triangle_vertices):
-    #TODO: code a proper triangle segment intercetion
-    has_intersection = False
-    intersection_point = Vertex(0, 0, 0)
-    if has_intersection:
-        return intersection_point
+def compute_normal(triangle_vertices):
+    v1 = triangle_vertices[1] - triangle_vertices[0]
+    v2 = triangle_vertices[2] - triangle_vertices[1]
+    normal = Vertex.cross(v1, v2).normalize()
+    return normal
 
-    return None
+def segment_plane_intersection(vertex1, vertex2, normal, point):
+        p = vertex2 - vertex1
+        denominator = normal * p
+        if denominator < 0.0001:
+            return None
+        r = normal * (point - vertex1)
+        r /= denominator
+        if r < 0 or r > 1:
+            return None
+        return r
 
-def signed_distance(cell, triangle):
-    
+def triangle_intersection(v1, v2, triangle_vertices, normal = None):
+    if normal is None:
+        normal = compute_normal(triangle_vertices)
+    t = segment_plane_intersection(v1, v2, normal, triangle_vertices[0])
+    if t is None:
+        return None
+
+    #scalar vector multiplication
+    intersection_point = v1 + (v2-v1).scalar_mult(t)
+    u = triangle_vertices[1] - triangle_vertices[0]
+    v = triangle_vertices[2] - triangle_vertices[1]
+    uu = u*u
+    uv = u*v
+    vv = v*v
+    w = intersection_point - triangle_vertices[0]
+    wu = w*u
+    wv = w*v
+    D = uv * uv - uu * vv
+
+    # get and test parametric coords
+    s = (uv * wv - vv * wu) / D
+    if (s < 0.0 or s > 1.0):         # I is outside T
+        return None
+    t = (uv * wu - uu * wv) / D
+    if (t < 0.0 or (s + t) > 1.0):  # I is outside T
+        return None
+
+    return intersection_point                       # I is in T
+
+
+def compute_side(vertex, triangle_vertices):
+    normal = compute_normal(triangle)
+    if vertex * normal > 0:
+        return 1
+    return -1
+
+def signed_distance(cell, vertices, faces):
+    edges = [
+        (0, 1), (1, 2), (2, 3), (3, 0),
+        (4, 5), (5, 6), (6, 7), (7, 4),
+        (2, 6), (1, 5), (3, 7), (0, 4)
+    ]
+    hasintersection = False
+    for edge in edges:
+        for indices in faces:
+            triangle = (vertices[indices.a], vertices[indices.b], vertices[indices.c])
+            normal = compute_normal(triangle)
+            intersection_point = triangle_intersection(cell.positions[edge[0]], cell.positions[edge[1]], triangle, normal)
+            if intersection_point is not None:
+                hasintersection = True
+                #sign = compute_side(cell.positions[edge[0]], triangle)
+                sign = 1 if cell.positions[edge[0]] * normal > 0 else -1
+                cell.values[edge[0]] = cell.weights[edge[0]]*cell.values[edge[0]] + sign * Vertex.distance(cell.positions[edge[0]], intersection_point)
+                cell.weights[edge[0]] += 1
+                cell.values[edge[0]] /= cell.weights[edge[0]]
+
+                cell.values[edge[1]] = cell.weights[edge[1]]*cell.values[edge[1]] -sign * Vertex.distance(cell.positions[edge[1]], intersection_point)
+                cell.weights[edge[1]] += 1
+                cell.values[edge[1]] /= cell.weights
+    return hasintersection
+
+def assign_distance_to_grid(grid, vertices, faces):
+    flatgrid = []
+    for i in range(len(grid)):
+        for j in range(len(grid[0])):
+            for k in range(len(grid[0][0])):
+                cell = grid[i][j][k]
+                if signed_distance(cell, vertices, faces):
+                    flatgrid.append(cell)
+                print(i, j, k)
+    print("all cells with value")
 
 def polygonise_cube(cell, isovalue, vertices, triangles):
     vertlist = 12*[None]
@@ -156,23 +236,32 @@ def bitorus(x, y, z):
 
 if __name__ == '__main__':
     half_size = 2
-    box_volume = BoundingBox(-half_size, -half_size, -half_size, half_size, half_size, half_size)
+    #box_volume = BoundingBox(-half_size, -half_size, -half_size, half_size, half_size, half_size)
 
-    grid = makeGrid(box_volume, 70)
+
     #assign_values(grid, sphere)
-    assign_values(grid, bitorus)
+    #assign_values(grid, bitorus)
+
+    vertexBuffer, indexBuffer, box_volume = generateOFF("images/vase_rgb.jpg", "images/vase_depth.png", "models/myvase.off")
+
+    grid = makeGrid(box_volume, 10)
+
+    grid = assign_distance_to_grid(grid, vertexBuffer, indexBuffer)
+
     vertices = []
     triangles = []
-    for i in range(len(grid)):
-        for j in range(len(grid[0])):
-            for k in range(len(grid[0][0])):
-                cell = grid[i][j][k]
-                polygonise_cube(cell, 0.01, vertices, triangles)
+    # for i in range(len(grid)):
+    #     for j in range(len(grid[0])):
+    #         for k in range(len(grid[0][0])):
+    #             cell = grid[i][j][k]
+    #             polygonise_cube(cell, 0.01, vertices, triangles)
+    for cell in grid:
+        polygonise_cube(cell, 0, vertices, triangles)
 
     points = [str(i) for i in vertices]
     indices = [str(i) for i in triangles]
 
-    meshfile = open("torus.off","w")
+    meshfile = open("sala.off","w")
     meshfile.write(
     '''OFF
     %d %d 0

@@ -124,6 +124,7 @@ def generateOFF(rgb_file,depth_file,off_file):
     %s%s
     '''%(len(points),len(indices), "".join(points), "".join(indices)))
     boxfile.close()
+    return vertices, faces, bounding_box
 
 
 if __name__ == '__main__':

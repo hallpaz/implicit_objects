@@ -25,8 +25,27 @@ class Vertex:
     def __mul__(self, rhs):
         return self.x * rhs.x + self.y * rhs.y + self.z * rhs.z
 
+    def __truediv__(self, scalar):
+        return Vertex(self.x/scalar, self.y/scalar, self.z/scalar)
+
+    def scalar_mult(self, scalar):
+        return Vertex(self.x*scalar, self.y*scalar, self.z*scalar)
+
+    def normalize(self):
+        norm = math.sqrt(self*self)
+        if(norm < 0.000001):
+            print("Trying to normalize 0 vector")
+            return Vertex(0, 0, 0)
+        return Vertex(self.x/norm, self.y/norm, self.z/norm)
+
     def distance(lhs, rhs):
         return math.sqrt((lhs.x - rhs.x)**2 + (lhs.y - rhs.y)**2 + (lhs.z - rhs.z)**2)
+
+    def cross(lhs, rhs):
+        x = (lhs.y*rhs.z - lhs.z*rhs.y)
+        y = (lhs.z*rhs.x - lhs.x*rhs.z)
+        z = (lhs.x*rhs.y - lhs.y*rhs.x)
+        return Vertex(x, y, z)
 
     def __str__(self):
         return "%f %f %f\n"%(self.x,self.y,self.z)
@@ -49,11 +68,16 @@ class Triangle:
 
 
 class GridCell:
-    def __init__(self, vertices_position, vertices_values = None):
+    def __init__(self, vertices_position, vertices_values = None, vertices_weight = None):
         if vertices_values is None:
             self.values = [0, 0, 0, 0, 0, 0, 0, 0]
         else:
             self.values = vertices_values
+        if vertices_weight is None:
+            self.weights = [0, 0, 0, 0, 0, 0, 0, 0]
+        else:
+            self.weights = vertices_weight
+
         self.positions = vertices_position
 
 
