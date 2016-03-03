@@ -1,4 +1,5 @@
 import operator
+import math
 from LookUpTables import edgeTable, triTable
 from DataStructures import BoundingBox, GridCell, Vertex, Triangle
 from naive_mesh import generateOFF
@@ -149,8 +150,10 @@ def compute_side(vertex, triangle_vertices):
 #     return hasintersection
 
 
-def nearby_voxels(vertex):
-    
+def nearby_voxels(vertex, min_corner, cell_dimension):
+    i = math.floor((vertex.x - min_corner.x)/cell_dimension)
+    j = math.floor((vertex.y - min_corner.y)/cell_dimension)
+    z = math.floor((vertex.z - min_corner.z)/cell_dimension)
 
 def signed_distance(grid, vertices, faces):
     edges = [
