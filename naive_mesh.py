@@ -7,7 +7,7 @@ from DataStructures import Vertex, Triangle, DepthMap, BoundingBox
 focalLength = 525.0
 centerX = 319.5
 centerY = 239.5
-scalingFactor = 1000.0
+scalingFactor = 1000.00
 
 BIG = 9999999.99
 
@@ -82,10 +82,10 @@ def generateOFF(rgb_file,depth_file,off_file):
             vertices.append(vertex)
 
     bounding_box = BoundingBox(minx, miny, minz, maxx, maxy, maxz)
-    print(bounding_box)
+    #print(bounding_box)
 
     mean_distance = mean_distance / divide_factor
-    print(mean_distance, min_distance, max_distance)
+    #print(mean_distance, min_distance, max_distance)
     width = depth.size[0]
     height = depth.size[1]
     indices = []
