@@ -88,6 +88,17 @@ def segment_plane_intersection(vertex1, vertex2, normal, point):
             return None
         return r
 
+def ray_plane_intersection(vertex1, vertex2, normal, point):
+    p = vertex2 - vertex1
+    denominator = normal * p
+    if denominator < 0.0001:
+        return None
+    r = normal * (point - vertex1)
+    r /= denominator
+    # if r < 0 or r > 1:
+    #     return None
+    return r
+
 def triangle_intersection(v1, v2, triangle_vertices, normal = None):
     if normal is None:
         normal = compute_normal(triangle_vertices)
@@ -124,32 +135,6 @@ def compute_side(vertex, triangle_vertices):
         return 1
     return -1
 
-# def signed_distance(cell, vertices, faces):
-#     edges = [
-#         (0, 1), (1, 2), (2, 3), (3, 0),
-#         (4, 5), (5, 6), (6, 7), (7, 4),
-#         (2, 6), (1, 5), (3, 7), (0, 4)
-#     ]
-#     hasintersection = False
-#     for edge in edges:
-#         for indices in faces:
-#             triangle = (vertices[indices.a], vertices[indices.b], vertices[indices.c])
-#             normal = compute_normal(triangle)
-#             intersection_point = triangle_intersection(cell.positions[edge[0]], cell.positions[edge[1]], triangle, normal)
-#             if intersection_point is not None:
-#                 hasintersection = True
-#                 #sign = compute_side(cell.positions[edge[0]], triangle)
-#                 sign = 1 if cell.positions[edge[0]] * normal > 0 else -1
-#                 cell.values[edge[0]] = cell.weights[edge[0]]*cell.values[edge[0]] + sign * Vertex.distance(cell.positions[edge[0]], intersection_point)
-#                 cell.weights[edge[0]] += 1
-#                 cell.values[edge[0]] /= cell.weights[edge[0]]
-#
-#                 cell.values[edge[1]] = cell.weights[edge[1]]*cell.values[edge[1]] -sign * Vertex.distance(cell.positions[edge[1]], intersection_point)
-#                 cell.weights[edge[1]] += 1
-#                 cell.values[edge[1]] /= cell.weights[edge[1]]
-#     return hasintersection
-
-
 def nearby_voxels(vertex, min_corner, cell_dimension):
     i = math.floor((vertex.x - min_corner[0]) / cell_dimension)
     j = math.floor((vertex.y - min_corner[1]) / cell_dimension)
@@ -166,6 +151,11 @@ def signed_distance(grid, vertices, faces, min_corner, cell_dimension):
         (4, 5), (5, 6), (6, 7), (7, 4),
         (2, 6), (1, 5), (3, 7), (0, 4)
     ]
+
+    zedges = [(3, 0), (1, 2), (5, 6), (7, 4)]
+    yedges = [(3, 7), (2, 6), (1, 5), (0, 4)]
+    xedges = [(2, 3), (6, 7), (0, 1), (4, 5)]
+
     hasintersection = False
     flatgrid = []
     processed_cells = 0
@@ -189,8 +179,8 @@ def signed_distance(grid, vertices, faces, min_corner, cell_dimension):
                 intersection_point = triangle_intersection(cell.positions[edge[0]], cell.positions[edge[1]], triangle, normal)
                 if intersection_point is not None:
                     hasintersection = True
-                    #sign = compute_side(cell.positions[edge[0]], triangle)
-                    sign = 1 if cell.positions[edge[0]] * normal > 0 else -1
+                    # Compute Vertex Side
+                    sign = 1 if (cell.positions[edge[0]] - intersection_point) * normal > 0 else -1
                     cell.values[edge[0]] = cell.weights[edge[0]]*cell.values[edge[0]] + sign * Vertex.distance(cell.positions[edge[0]], intersection_point)
                     cell.weights[edge[0]] += 1
                     cell.values[edge[0]] /= cell.weights[edge[0]]
@@ -206,18 +196,81 @@ def signed_distance(grid, vertices, faces, min_corner, cell_dimension):
     flatgrid = set(flatgrid)
     return flatgrid
 
-def assign_distance_to_grid(grid, vertices, faces):
-    flatgrid = []
-    # for i in range(len(grid)):
-    #     for j in range(len(grid[0])):
-    #         for k in range(len(grid[0][0])):
-    #             cell = grid[i][j][k]
-    #             if signed_distance(cell, vertices, faces):
-    #                 flatgrid.append(cell)
-    #             print(i, j, k)
 
-    print("all cells with value")
-    return flatgrid
+# def signed_distance(grid, vertices, faces, min_corner, cell_dimension):
+#     edges = [
+#         (0, 1), (1, 2), (2, 3), (3, 0),
+#         (4, 5), (5, 6), (6, 7), (7, 4),
+#         (2, 6), (1, 5), (3, 7), (0, 4)
+#     ]
+#
+#     zedges = [(3, 0), (1, 2), (5, 6), (7, 4)]
+#     # yedges = [(3, 7), (2, 6), (1, 5), (0, 4)]
+#     # xedges = [(2, 3), (6, 7), (0, 1), (4, 5)]
+#     oedges = [(3, 7), (2, 6), (1, 5), (0, 4), (2, 3), (6, 7), (0, 1), (4, 5)]
+#
+#     hasintersection = False
+#     flatgrid = []
+#     processed_cells = 0
+#     for indices in faces:
+#         voxels_indices = []
+#         triangle = (vertices[indices.a], vertices[indices.b], vertices[indices.c])
+#         voxels_indices.extend(nearby_voxels(triangle[0], min_corner, cell_dimension))
+#         voxels_indices.extend(nearby_voxels(triangle[1], min_corner, cell_dimension))
+#         voxels_indices.extend(nearby_voxels(triangle[2], min_corner, cell_dimension))
+#         voxels_indices = set(voxels_indices)
+#         for indices in voxels_indices:
+#             #print(indices[0], indices[1], indices[2])
+#             try:
+#                 cell = grid[indices[0]][indices[1]][indices[2]]
+#             except Exception:
+#                 with open("mesh_log.txt", "a+") as logfile:
+#                     logfile.write("Out of bounds: {}\n".format(indices))
+#                 continue
+#             normal = compute_normal(triangle)
+#             for edge in zedges:
+#                 intersection_point = triangle_intersection(cell.positions[edge[0]], cell.positions[edge[1]], triangle, normal)
+#                 if intersection_point is not None:
+#                     hasintersection = True
+#                     # Compute Vertex Side
+#                     sign = 1 if (cell.positions[edge[0]] - intersection_point) * normal > 0 else -1
+#                     cell.values[edge[0]] = cell.weights[edge[0]]*cell.values[edge[0]] + sign * Vertex.distance(cell.positions[edge[0]], intersection_point)
+#                     cell.weights[edge[0]] += 1
+#                     cell.values[edge[0]] /= cell.weights[edge[0]]
+#
+#                     cell.values[edge[1]] = cell.weights[edge[1]]*cell.values[edge[1]] -sign * Vertex.distance(cell.positions[edge[1]], intersection_point)
+#                     cell.weights[edge[1]] += 1
+#                     cell.values[edge[1]] /= cell.weights[edge[1]]
+#                     flatgrid.append(cell)
+#                     processed_cells += 1
+#                     if processed_cells % 200 == 0:
+#                         print('cells on flat grid: ' ,processed_cells)
+#             # for edge in oedges:
+#             #     intersection_point = triangle_intersection(cell.positions[edge[0]], cell.positions[edge[1]], triangle, normal)
+#             #     if intersection_point is not None:
+#             #         v1 = cell.positions[edge[0]]
+#             #         v2 = cell.positions[edge[1]]
+#             #         t1 = ray_plane_intersection(v1, v1 + Vertex(v1.x, v1.y, 1), normal, triangle[0])
+#             #         t2 = ray_plane_intersection(v2, v2 + Vertex(0, 0, 1), normal, triangle[0])
+#             #         if t1 is not None:
+#             #             plane_point = v1 + Vertex(0, 0, 1).scalar_mult(t1)
+#             #             sign = 1 if (v1 - plane_point) * normal > 0 else -1
+#             #             cell.values[edge[0]] = cell.weights[edge[0]]*cell.values[edge[0]] + sign * Vertex.distance(cell.positions[edge[0]], plane_point)
+#             #             cell.weights[edge[0]] += 1
+#             #             cell.values[edge[0]] /= cell.weights[edge[0]]
+#             #         if t2 is not None:
+#             #             plane_point = v2 + Vertex(0, 0, 1).scalar_mult(t2)
+#             #             sign = 1 if (v2 - plane_point) * normal > 0 else -1
+#             #             cell.values[edge[1]] = cell.weights[edge[1]]*cell.values[edge[1]] -sign * Vertex.distance(cell.positions[edge[1]], plane_point)
+#             #             cell.weights[edge[1]] += 1
+#             #             cell.values[edge[1]] /= cell.weights[edge[1]]
+#             #         flatgrid.append(cell)
+#             #         processed_cells += 1
+#             #         if processed_cells % 200 == 0:
+#             #             print('cells on flat grid: ' ,processed_cells)
+#
+#     flatgrid = set(flatgrid)
+#     return flatgrid
 
 def polygonise_cube(cell, isovalue, vertices, triangles):
     vertlist = 12*[None]
@@ -294,37 +347,45 @@ def sphere(x, y, z):
 def bitorus(x, y, z):
     return ((x**2 + y**2)**2 - x**2 + y**2)**2 + z**2
 
+def coeur(x, y, z):
+    return (x**2 + (9/4)*y**2 + z**2 - 1)**3 - x**2 * z**3 - (9/80)*y**2 * z**3
+
 if __name__ == '__main__':
-    half_size = 2
-    box_volume = BoundingBox(-half_size, -half_size, -half_size, half_size, half_size, half_size)
+    half_size = 3
+    #box_volume = BoundingBox(-half_size, -half_size, -half_size, half_size, half_size, half_size)
 
 
-    #assign_values(grid, sphere)
+    vertexBuffer, indexBuffer, box_volume = generateOFF("images/vase_rgb.jpg", "images/vase_depth.png", "models/myvase.off")
+    # l = box_volume.min_corner
+    # r = box_volume.max_corner
+    # box_volume = BoundingBox(l[0], l[1], l[2], r[0]/2, r[1]/2, r[2]/2)
+    grid, dimension = makeGrid(box_volume, 100)
+
+    #assign_values(grid, bitorus)
+    #assign_values(grid, coeur)
+
+    #TEST ONLY!!!!
+    #indexBuffer = indexBuffer[0:500]
+    ##########
 
 
-    #vertexBuffer, indexBuffer, box_volume = generateOFF("images/vase_rgb.jpg", "images/vase_depth.png", "models/myvase.off")
-
-    grid, dimension = makeGrid(box_volume, 120)
-
-    assign_values(grid, bitorus)
-
-    #grid = signed_distance(grid, vertexBuffer, indexBuffer, box_volume.min_corner, dimension)
+    grid = signed_distance(grid, vertexBuffer, indexBuffer, box_volume.min_corner, dimension)
     #assign_distance_to_grid(grid, vertexBuffer, indexBuffer)
 
     vertices = []
     triangles = []
-    for i in range(len(grid)):
-        for j in range(len(grid[0])):
-            for k in range(len(grid[0][0])):
-                cell = grid[i][j][k]
-                polygonise_cube(cell, 0.01, vertices, triangles)
-    #for cell in grid:
-    #    polygonise_cube(cell, (1/100), vertices, triangles)
+    # for i in range(len(grid)):
+    #     for j in range(len(grid[0])):
+    #         for k in range(len(grid[0][0])):
+    #             cell = grid[i][j][k]
+    #             polygonise_cube(cell, 0, vertices, triangles)
+    for cell in grid:
+       polygonise_cube(cell, 0, vertices, triangles)
 
     points = [str(i) for i in vertices]
     indices = [str(i) for i in triangles]
 
-    meshfile = open("torus120.off","w")
+    meshfile = open("reconstruction100.off","w")
     meshfile.write(
     '''OFF
     %d %d 0
