@@ -71,6 +71,7 @@ def possible_intersection(vertex, min_corner, cell_dimension):
 
 def assing_values(grid, vertexBuffer, indicesBuffer, min_corner, cell_dimension):
 
+    # inter_points = []
     for indices in indicesBuffer:
         voxels_indices = []
 
@@ -91,22 +92,39 @@ def assing_values(grid, vertexBuffer, indicesBuffer, min_corner, cell_dimension)
                 print(e, indices)
                 continue
 
-            intersection_point = triangle_intersection(point, point + Vertex(0, 0, 10), triangle, normal)
+            intersection_point = triangle_intersection(point, point + Vertex(0, 0, 7), triangle, normal)
             if intersection_point is not None:
-                point.value = abs(intersection_point.z - point.z)
+
+                #d1 = intersection_point.z - point.z
+                #d2 = Vertex.distance(intersection_point, point)
+                #print(d1, d2)
+                #exit()
+                # inter_points.append("%f %f %f\n"%(intersection_point.x,intersection_point.y,intersection_point.z))
+                point.value = intersection_point.z - point.z
                 #sign = 1 if (point - intersection_point) * normal > 0 else -1
                 # new_value = intersection_point.z - point.z
                 # if new_value < point.value:
                 #     point.value = new_value
-    print("all intersections computed")
-
+#     inter_file = open("inter_points.ply","w")
+#     inter_file.write('''ply
+# format ascii 1.0
+# element vertex %d
+# property float x
+# property float y
+# property float z
+# end_header
+# %s
+# '''%(len(inter_points),"".join(inter_points)))
+#     inter_file.close()
+#     print("all intersections computed")
+#     exit()
     for k in range(1, len(grid)):
         for j in range(len(grid[0])):
             for i in range(len(grid[0][0])):
                 point = grid[k][j][i]
                 ref_point = grid[0][j][i]
                 # floating point arithmetics might be a source of error here
-                point.value = ref_point.value - abs(point.z + ref_point.z)
+                point.value = ref_point.value - (ref_point.z - point.z)
 
     print("all grid points values computed")
 

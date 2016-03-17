@@ -356,7 +356,7 @@ def coeur(x, y, z):
 def main():
     vertexBuffer, indexBuffer, box_volume = generateOFF("images/vase_rgb.jpg", "images/vase_depth.png", "models/myvase.off")
 
-    grid, dimension = grid_ops.make_grid(box_volume, 200)
+    grid, dimension = grid_ops.make_grid(box_volume, 300)
 
     grid_ops.assing_values(grid, vertexBuffer, indexBuffer, box_volume.min_corner, dimension)
 
@@ -372,7 +372,7 @@ def main():
     points = [str(i) for i in vertices]
     indices = [str(i) for i in triangles]
 
-    meshfile = open("reconstruction150.off","w")
+    meshfile = open("reconstruction300.off","w")
     meshfile.write(
     '''OFF
     %d %d 0
