@@ -8,10 +8,14 @@ class DepthMap:
 
 
 class Vertex:
-    def __init__(self, x, y, z):
+    def __init__(self, x, y, z, value = None):
         self.x = x
         self.y = y
         self.z = z
+        if value is None:
+            self.value = 1
+        else:
+            self.value = value
 
     def __add__(self, rhs):
         return Vertex(self.x + rhs.x, self.y + rhs.y, self.z + rhs.z)
@@ -68,18 +72,10 @@ class Triangle:
 
 
 class GridCell:
-    def __init__(self, vertices_position, vertices_values = None, vertices_weight = None):
-        if vertices_values is None:
-            self.values = [0, 0, 0, 0, 0, 0, 0, 0]
-        else:
-            self.values = vertices_values
-        if vertices_weight is None:
-            self.weights = [0, 0, 0, 0, 0, 0, 0, 0]
-        else:
-            self.weights = vertices_weight
-
-        self.positions = vertices_position
-
+    def __init__(self, vertices):
+        if(len(vertices) != 8):
+            raise("Wrong number of vertices ({}) for cell".format(len(vertices)))
+        self.vertices = vertices
 
     def __repr__(self):
         return "cell"
