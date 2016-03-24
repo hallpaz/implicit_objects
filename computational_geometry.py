@@ -1,8 +1,4 @@
-import operator
-import math
-from LookUpTables import edgeTable, triTable
 from DataStructures import BoundingBox, GridCell, Vertex, Triangle
-
 
 def compute_normal(triangle_vertices):
     v1 = triangle_vertices[1] - triangle_vertices[0]
@@ -13,27 +9,24 @@ def compute_normal(triangle_vertices):
 def segment_plane_intersection(vertex1, vertex2, normal, point):
         p = vertex2 - vertex1
         denominator = normal * p
-        if abs(denominator) < 0.00001:
-            print("xabu", vertex1, vertex2, normal)
+        if denominator < 0.0001:
             return None
         r = normal * (point - vertex1)
         r /= denominator
         if r < 0 or r > 1:
-            print("segment problem")
             return None
         return r
 
 def ray_plane_intersection(vertex1, vertex2, normal, point):
     p = vertex2 - vertex1
     denominator = normal * p
-    if abs(denominator) < 0.0001:
+    if denominator < 0.0001:
         return None
     r = normal * (point - vertex1)
     r /= denominator
     # if r < 0 or r > 1:
     #     return None
-    intersection_point = vertex1 + p.scalar_mult(r)
-    return intersection_point
+    return r
 
 def triangle_intersection(v1, v2, triangle_vertices, normal = None):
     if normal is None:
@@ -63,57 +56,6 @@ def triangle_intersection(v1, v2, triangle_vertices, normal = None):
         return None
 
     return intersection_point                       # I is in T
-
-def fake_triangle_intersection(v1, v2, triangle_vertices, normal = None):
-    if normal is None:
-        normal = compute_normal(triangle_vertices)
-    t = segment_plane_intersection(v1, v2, normal, triangle_vertices[0])
-    if t is None:
-        return None
-
-    #scalar vector multiplication
-    intersection_point = v1 + (v2-v1).scalar_mult(t)
-
-    q0 = intersection_point - triangle_vertices[0]
-    q1 = triangle_vertices[1] - triangle_vertices[0]
-    q2 = triangle_vertices[2] - triangle_vertices[0]
-
-
-    return intersection_point                       # I is in T
-
-def moller_triangle_intersection(v1, v2, triangle_vertices, normal = None):
-    EPSILON = 0.000001
-
-    e1 = triangle_vertices[1] - triangle_vertices[0]
-    e2 = triangle_vertices[2] - triangle_vertices[0]
-
-    D = v2 - v1
-    P = Vertex.cross(D, e2)
-
-    det = e1 * P
-    if abs(det) < EPSILON:
-        return None
-
-    inv_det = 1.0/det
-    T = v1 - triangle_vertices[0]
-    u = (T*P) * inv_det
-
-    if(u < 0.0 or u > 1.0):
-        return None
-
-    Q = Vertex.cross(T, e1)
-    v = (D*Q) * inv_det
-    if(v < 0.0 or (u + v)  > 1.0):
-        return None
-
-    t = (e2*Q) * inv_det
-
-    if(t > EPSILON):
-        intersection_point = v1 + (v2-v1).scalar_mult(t)
-        return intersection_point
-
-    return None
-
 
 
 def compute_side(vertex, triangle_vertices):

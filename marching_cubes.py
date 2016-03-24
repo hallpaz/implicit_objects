@@ -3,7 +3,7 @@ import math
 import grid_ops
 from LookUpTables import edgeTable, triTable
 from DataStructures import BoundingBox, GridCell, Vertex, Triangle
-from naive_mesh import generateOFF
+from naive_mesh import generateOFF, generatePlaneOFF
 
 
 
@@ -45,13 +45,13 @@ def makeGrid(box_volume, max_cells):
 
 
 def assign_values(grid, function):
-    for i in range(len(grid)):
-        for j in range(len(grid[0])):
-            for k in range(len(grid[0][0])):
-                cell = grid[i][j][k]
+    for k in range(len(grid)-1):
+        for j in range(len(grid[0])-1):
+            for i in range(len(grid[0][0])-1):
+                cell = grid_ops.cell_for_indices(grid, (k, j, i))
                 for u in range(8):
-                    value = function(cell.positions[u].x, cell.positions[u].y, cell.positions[u].z)
-                    cell.values[u] = value
+                    value = function(cell.vertices[u].x, cell.vertices[u].y, cell.vertices[u].z)
+                    cell.vertices[u].value = value
 
 
 
@@ -197,93 +197,17 @@ def signed_distance(grid, vertices, faces, min_corner, cell_dimension):
     flatgrid = set(flatgrid)
     return flatgrid
 
-
-# def signed_distance(grid, vertices, faces, min_corner, cell_dimension):
-#     edges = [
-#         (0, 1), (1, 2), (2, 3), (3, 0),
-#         (4, 5), (5, 6), (6, 7), (7, 4),
-#         (2, 6), (1, 5), (3, 7), (0, 4)
-#     ]
-#
-#     zedges = [(3, 0), (1, 2), (5, 6), (7, 4)]
-#     # yedges = [(3, 7), (2, 6), (1, 5), (0, 4)]
-#     # xedges = [(2, 3), (6, 7), (0, 1), (4, 5)]
-#     oedges = [(3, 7), (2, 6), (1, 5), (0, 4), (2, 3), (6, 7), (0, 1), (4, 5)]
-#
-#     hasintersection = False
-#     flatgrid = []
-#     processed_cells = 0
-#     for indices in faces:
-#         voxels_indices = []
-#         triangle = (vertices[indices.a], vertices[indices.b], vertices[indices.c])
-#         voxels_indices.extend(nearby_voxels(triangle[0], min_corner, cell_dimension))
-#         voxels_indices.extend(nearby_voxels(triangle[1], min_corner, cell_dimension))
-#         voxels_indices.extend(nearby_voxels(triangle[2], min_corner, cell_dimension))
-#         voxels_indices = set(voxels_indices)
-#         for indices in voxels_indices:
-#             #print(indices[0], indices[1], indices[2])
-#             try:
-#                 cell = grid[indices[0]][indices[1]][indices[2]]
-#             except Exception:
-#                 with open("mesh_log.txt", "a+") as logfile:
-#                     logfile.write("Out of bounds: {}\n".format(indices))
-#                 continue
-#             normal = compute_normal(triangle)
-#             for edge in zedges:
-#                 intersection_point = triangle_intersection(cell.positions[edge[0]], cell.positions[edge[1]], triangle, normal)
-#                 if intersection_point is not None:
-#                     hasintersection = True
-#                     # Compute Vertex Side
-#                     sign = 1 if (cell.positions[edge[0]] - intersection_point) * normal > 0 else -1
-#                     cell.values[edge[0]] = cell.weights[edge[0]]*cell.values[edge[0]] + sign * Vertex.distance(cell.positions[edge[0]], intersection_point)
-#                     cell.weights[edge[0]] += 1
-#                     cell.values[edge[0]] /= cell.weights[edge[0]]
-#
-#                     cell.values[edge[1]] = cell.weights[edge[1]]*cell.values[edge[1]] -sign * Vertex.distance(cell.positions[edge[1]], intersection_point)
-#                     cell.weights[edge[1]] += 1
-#                     cell.values[edge[1]] /= cell.weights[edge[1]]
-#                     flatgrid.append(cell)
-#                     processed_cells += 1
-#                     if processed_cells % 200 == 0:
-#                         print('cells on flat grid: ' ,processed_cells)
-#             # for edge in oedges:
-#             #     intersection_point = triangle_intersection(cell.positions[edge[0]], cell.positions[edge[1]], triangle, normal)
-#             #     if intersection_point is not None:
-#             #         v1 = cell.positions[edge[0]]
-#             #         v2 = cell.positions[edge[1]]
-#             #         t1 = ray_plane_intersection(v1, v1 + Vertex(v1.x, v1.y, 1), normal, triangle[0])
-#             #         t2 = ray_plane_intersection(v2, v2 + Vertex(0, 0, 1), normal, triangle[0])
-#             #         if t1 is not None:
-#             #             plane_point = v1 + Vertex(0, 0, 1).scalar_mult(t1)
-#             #             sign = 1 if (v1 - plane_point) * normal > 0 else -1
-#             #             cell.values[edge[0]] = cell.weights[edge[0]]*cell.values[edge[0]] + sign * Vertex.distance(cell.positions[edge[0]], plane_point)
-#             #             cell.weights[edge[0]] += 1
-#             #             cell.values[edge[0]] /= cell.weights[edge[0]]
-#             #         if t2 is not None:
-#             #             plane_point = v2 + Vertex(0, 0, 1).scalar_mult(t2)
-#             #             sign = 1 if (v2 - plane_point) * normal > 0 else -1
-#             #             cell.values[edge[1]] = cell.weights[edge[1]]*cell.values[edge[1]] -sign * Vertex.distance(cell.positions[edge[1]], plane_point)
-#             #             cell.weights[edge[1]] += 1
-#             #             cell.values[edge[1]] /= cell.weights[edge[1]]
-#             #         flatgrid.append(cell)
-#             #         processed_cells += 1
-#             #         if processed_cells % 200 == 0:
-#             #             print('cells on flat grid: ' ,processed_cells)
-#
-#     flatgrid = set(flatgrid)
-#     return flatgrid
-
 def polygonise_cube(cell, isovalue, vertices, triangles):
     vertlist = 12*[None]
     cubeindex = 0
-    if (cell.vertices[0].value < isovalue): cubeindex |= 1
-    if (cell.vertices[1].value < isovalue): cubeindex |= 2
-    if (cell.vertices[2].value < isovalue): cubeindex |= 4
-    if (cell.vertices[3].value < isovalue): cubeindex |= 8
-    if (cell.vertices[4].value < isovalue): cubeindex |= 16
-    if (cell.vertices[5].value < isovalue): cubeindex |= 32
-    if (cell.vertices[6].value < isovalue): cubeindex |= 64
-    if (cell.vertices[7].value < isovalue): cubeindex |= 128
+    if (cell.vertices[0].value > isovalue): cubeindex |= 1
+    if (cell.vertices[1].value > isovalue): cubeindex |= 2
+    if (cell.vertices[2].value > isovalue): cubeindex |= 4
+    if (cell.vertices[3].value > isovalue): cubeindex |= 8
+    if (cell.vertices[4].value > isovalue): cubeindex |= 16
+    if (cell.vertices[5].value > isovalue): cubeindex |= 32
+    if (cell.vertices[6].value > isovalue): cubeindex |= 64
+    if (cell.vertices[7].value > isovalue): cubeindex |= 128
 
     # Cube is entirely in/out of the surface
     if (edgeTable[cubeindex] == 0):
@@ -356,12 +280,117 @@ def coeur(x, y, z):
 def main():
     vertexBuffer, indexBuffer, box_volume = generateOFF("images/vase_rgb.jpg", "images/vase_depth.png", "models/myvase.off")
 
-    grid, dimension = grid_ops.make_grid(box_volume, 300)
+    grid, dimension = grid_ops.make_grid(box_volume, 400)
 
     grid_ops.assing_values(grid, vertexBuffer, indexBuffer, box_volume.min_corner, dimension)
+    #grid_ops.assing_all_values(grid, vertexBuffer, indexBuffer, box_volume.min_corner, dimension)
 
     vertices = []
     triangles = []
+
+    # for k in range(len(grid)-1):
+    #     print(grid[k][4][3].value)
+
+    flag = False
+    for k in range(len(grid)-1):
+        print("K:", k)
+        for j in range(len(grid[0])-1):
+            for i in range(len(grid[0][0])-1):
+                cell = grid_ops.cell_for_indices(grid, (k, j, i))
+                for vertex in cell.vertices:
+                    if vertex.value == grid_ops.SENTINEL_VALUE:
+                        flag = True
+                        break
+                if(flag):
+                    flag = False
+                    continue
+                polygonise_cube(cell, 0, vertices, triangles)
+
+    points = [str(i) for i in vertices]
+    indices = [str(i) for i in triangles]
+
+    meshfile = open("vase200_moller.off","w")
+    meshfile.write(
+    '''OFF
+    %d %d 0
+    %s%s
+    '''%(len(points),len(indices), "".join(points), "".join(indices)))
+    meshfile.close()
+
+def plane_test():
+    vertexBuffer, indexBuffer, box_volume = generatePlaneOFF("models/plane.off")
+
+    grid, dimension = grid_ops.make_grid(box_volume, 17)
+
+    grid_ops.assing_values(grid, vertexBuffer, indexBuffer, box_volume.min_corner, dimension)
+    #grid_ops.assing_all_values(grid, vertexBuffer, indexBuffer, box_volume.min_corner, dimension)
+
+    vertices = []
+    triangles = []
+
+    flag = False
+    for k in range(len(grid)-1):
+        print("K:", k)
+        for j in range(len(grid[0])-1):
+            for i in range(len(grid[0][0])-1):
+                cell = grid_ops.cell_for_indices(grid, (k, j, i))
+                for vertex in cell.vertices:
+                    if vertex.value == grid_ops.SENTINEL_VALUE:
+                        flag = True
+                        break
+                if(flag):
+                    flag = False
+                    continue
+                polygonise_cube(cell, 0, vertices, triangles)
+
+    points = [str(i) for i in vertices]
+    indices = [str(i) for i in triangles]
+
+    meshfile = open("rec_plane_17moller.off","w")
+    meshfile.write(
+    '''OFF
+    %d %d 0
+    %s%s
+    '''%(len(points),len(indices), "".join(points), "".join(indices)))
+    meshfile.close()
+
+def poly_function():
+    half_size = 3
+    box_volume = BoundingBox(-half_size, -half_size, -half_size, half_size, half_size, half_size)
+
+    grid, dimension = grid_ops.make_grid(box_volume, 50)
+
+    assign_values(grid, bitorus)
+
+    vertices = []
+    triangles = []
+    for k in range(len(grid)-1):
+        print("K:", k)
+        for j in range(len(grid[0])-1):
+            for i in range(len(grid[0][0])-1):
+                cell = grid_ops.cell_for_indices(grid, (k, j, i))
+                polygonise_cube(cell, 0.01, vertices, triangles)
+
+    points = [str(i) for i in vertices]
+    indices = [str(i) for i in triangles]
+
+    meshfile = open("torus100_new.off","w")
+    meshfile.write(
+    '''OFF
+    %d %d 0
+    %s%s
+    '''%(len(points),len(indices), "".join(points), "".join(indices)))
+    meshfile.close()
+    vertexBuffer, indexBuffer, box_volume = generatePlaneOFF("models/plane.off")
+
+    grid, dimension = grid_ops.make_grid(box_volume, 10)
+
+    grid_ops.assing_values(grid, vertexBuffer, indexBuffer, box_volume.min_corner, dimension)
+    #grid_ops.assing_all_values(grid, vertexBuffer, indexBuffer, box_volume.min_corner, dimension)
+
+    vertices = []
+    triangles = []
+
     for k in range(len(grid)-1):
         print("K:", k)
         for j in range(len(grid[0])-1):
@@ -372,7 +401,134 @@ def main():
     points = [str(i) for i in vertices]
     indices = [str(i) for i in triangles]
 
-    meshfile = open("reconstruction300.off","w")
+    meshfile = open("rec_plane_10.off","w")
+    meshfile.write(
+    '''OFF
+    %d %d 0
+    %s%s
+    '''%(len(points),len(indices), "".join(points), "".join(indices)))
+    meshfile.close()
+
+def artificial_valoration():
+    vertexBuffer, indexBuffer, box_volume = generatePlaneOFF("models/plane.off")
+
+    grid, dimension = grid_ops.make_grid(box_volume, 100)
+
+    # grid_ops.assing_values(grid, vertexBuffer, indexBuffer, box_volume.min_corner, dimension)
+    #grid_ops.assing_all_values(grid, vertexBuffer, indexBuffer, box_volume.min_corner, dimension)
+
+    for j in range(len(grid[0])):
+        for i in range(len(grid[0][0])):
+            point = grid[0][j][i]
+            point.value = 1.0
+            for k in range(1, len(grid)):
+                p = grid[k][j][i]
+                p.value = point.value - k*dimension
+                #print(p.value)
+            #exit()
+
+    vertices = []
+    triangles = []
+
+    for k in range(len(grid)-1):
+        print("K:", k)
+        for j in range(len(grid[0])-1):
+            for i in range(len(grid[0][0])-1):
+                cell = grid_ops.cell_for_indices(grid, (k, j, i))
+                polygonise_cube(cell, 0, vertices, triangles)
+
+    points = [str(i) for i in vertices]
+    indices = [str(i) for i in triangles]
+
+    meshfile = open("artificial_plane_100.off","w")
+    meshfile.write(
+    '''OFF
+    %d %d 0
+    %s%s
+    '''%(len(points),len(indices), "".join(points), "".join(indices)))
+    meshfile.close()
+
+def cube_test():
+    half_size = 3
+    box_volume = BoundingBox(-half_size, -half_size, -half_size, half_size, half_size, half_size)
+
+    # vertexBuffer = [
+    #     Vertex(-1.0, -1.0, -2.0),
+    #     Vertex(1.0, -1.0, -2.0),
+    #     Vertex(1.0, -1.0, 0.0),
+    #     Vertex(-1.0, -1.0, 0.0),
+    #
+    #     Vertex(-1.0, 1.0, -2.0),
+    #     Vertex(1.0, 1.0, -2.0),
+    #     Vertex(1.0, 1.0, 0.0),
+    #     Vertex(-1.0, 1.0, 0.0)
+    # ]
+    #
+    # indexBuffer = [
+    #     Triangle(0, 3, 1),
+    #     Triangle(3, 2, 1),
+    #     Triangle(4, 7, 5),
+    #     Triangle(7, 6, 5),
+    #     Triangle(6, 2, 5),
+    #     Triangle(2, 1, 5),
+    #     Triangle(4, 0, 7),
+    #     Triangle(0, 3, 7),
+    #     Triangle(7, 3, 6),
+    #     Triangle(3, 2, 6),
+    #     Triangle(4, 0, 5),
+    #     Triangle(0, 1, 5)
+    # ]
+
+
+    vertexBuffer = [
+        Vertex(2.0, 2.0, -2.0),
+        Vertex(-2.0, 2.0, -2.0),
+        Vertex(-2.0, -2.0, -2.0),
+        Vertex(2.0, -2.0, -2.0),
+    ]
+
+    indexBuffer = [
+        Triangle(0, 1, 2),
+        Triangle(2, 3, 0)
+    ]
+
+    grid, dimension = grid_ops.make_grid(box_volume, 100)
+
+    #grid_ops.assing_values(grid, vertexBuffer, indexBuffer, box_volume.min_corner, dimension)
+    grid_ops.assing_all_values(grid, vertexBuffer, indexBuffer, box_volume.min_corner, dimension)
+    #exit()
+    vertices = []
+    triangles = []
+
+    # for k in range(len(grid)-1):
+    #     print(grid[k][4][3].value)
+
+    # for k in range(len(grid)):
+    #     print("K: {}, 16: {}, 17: {}; 83: {}, 84: {}".format(k, grid[k][20][16].value,
+    #                                                         grid[k][20][17].value,
+    #                                                         grid[k][20][83].value,
+    #                                                         grid[k][20][84].value))
+    # print("HOP!!!!!!!!")
+
+    flag = False
+    for k in range(len(grid)-1):
+        print("K:", k)
+        for j in range(len(grid[0])-1):
+            for i in range(len(grid[0][0])-1):
+                cell = grid_ops.cell_for_indices(grid, (k, j, i))
+                for vertex in cell.vertices:
+                    if vertex.value == grid_ops.SENTINEL_VALUE:
+                        flag = True
+                        break
+                if(flag):
+                    flag = False
+                    continue
+                polygonise_cube(cell, 0, vertices, triangles)
+
+    points = [str(i) for i in vertices]
+    indices = [str(i) for i in triangles]
+
+    meshfile = open("plane100_2triangles.off","w")
     meshfile.write(
     '''OFF
     %d %d 0
@@ -382,44 +538,8 @@ def main():
 
 if __name__ == '__main__':
     main()
-    # half_size = 3
-    # #box_volume = BoundingBox(-half_size, -half_size, -half_size, half_size, half_size, half_size)
-    #
-    #
-    # vertexBuffer, indexBuffer, box_volume = generateOFF("images/vase_rgb.jpg", "images/vase_depth.png", "models/myvase.off")
-    # # l = box_volume.min_corner
-    # # r = box_volume.max_corner
-    # # box_volume = BoundingBox(l[0], l[1], l[2], r[0]/2, r[1]/2, r[2]/2)
-    # grid, dimension = makeGrid(box_volume, 100)
-    #
-    # #assign_values(grid, bitorus)
-    # #assign_values(grid, coeur)
-    #
-    # #TEST ONLY!!!!
-    # #indexBuffer = indexBuffer[0:500]
-    # ##########
-    #
-    #
-    # grid = signed_distance(grid, vertexBuffer, indexBuffer, box_volume.min_corner, dimension)
-    # #assign_distance_to_grid(grid, vertexBuffer, indexBuffer)
-    #
-    # vertices = []
-    # triangles = []
-    # # for i in range(len(grid)):
-    # #     for j in range(len(grid[0])):
-    # #         for k in range(len(grid[0][0])):
-    # #             cell = grid[i][j][k]
-    # #             polygonise_cube(cell, 0, vertices, triangles)
-    # for cell in grid:
-    #    polygonise_cube(cell, 0, vertices, triangles)
-    #
-    # points = [str(i) for i in vertices]
-    # indices = [str(i) for i in triangles]
-    #
-    # meshfile = open("reconstruction100.off","w")
-    # meshfile.write(
-    # '''OFF
-    # %d %d 0
-    # %s%s
-    # '''%(len(points),len(indices), "".join(points), "".join(indices)))
-    # meshfile.close()
+    #poly_function()
+    #cube_test()
+    #plane_test()
+
+    #artificial_valoration()

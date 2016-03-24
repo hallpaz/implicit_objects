@@ -47,6 +47,10 @@ def generateOFF(rgb_file,depth_file,off_file):
     vertices = []
     last_depth = 0.0
     divide_factor = 0
+
+    width = depth.size[0]
+    height = depth.size[1]
+
     for v in range(rgb.size[1]):
         for u in range(rgb.size[0]):
             #color = rgb.getpixel((u,v))
@@ -81,16 +85,17 @@ def generateOFF(rgb_file,depth_file,off_file):
             points.append(str(vertex))
             vertices.append(vertex)
 
-    bounding_box = BoundingBox(minx, miny, minz, maxx, maxy, maxz)
+    bounding_box = BoundingBox(minx, miny, minz-1, maxx, maxy, maxz+1)
+    # bounding_box = BoundingBox(minx, miny, minz, maxx, maxy, maxz)
     #print(bounding_box)
 
     mean_distance = mean_distance / divide_factor
     #print(mean_distance, min_distance, max_distance)
-    width = depth.size[0]
-    height = depth.size[1]
+
     indices = []
     faces = []
     distanceThreshold = mean_distance*8
+
     for v in range(height - 1):
         for u in range(width - 1):
             #superior triangle
@@ -107,7 +112,6 @@ def generateOFF(rgb_file,depth_file,off_file):
                 triangle = Triangle( v*width + u + 1 , (v+1)*width + u, (v+1)*width + u + 1 )
                 faces.append(triangle)
                 indices.append(str(triangle))
-            #faces.append("4 %d %d %d %d\n"%( v*width + u, v*width + u + 1 , (v+1)*width + u + 1 , (v+1)*width + u ))
 
     meshfile = open(off_file,"w")
     meshfile.write('''OFF
@@ -118,7 +122,85 @@ def generateOFF(rgb_file,depth_file,off_file):
 
     points = bounding_box.points()
     indices = bounding_box.indices()
-    boxfile = open("models/box.off", "w")
+    boxfile = open("models/vasebox.off", "w")
+    boxfile.write('''OFF
+    %d %d 0
+    %s%s
+    '''%(len(points),len(indices), "".join(points), "".join(indices)))
+    boxfile.close()
+    return vertices, faces, bounding_box
+
+
+def generatePlaneOFF(off_file):
+
+    mean_distance = 0.0
+    min_distance = BIG
+    minx = BIG
+    miny = BIG
+    minz = BIG
+    maxx = -BIG
+    maxy = -BIG
+    maxz = -BIG
+    max_distance = 0.0
+    points = []
+    vertices = []
+    last_depth = 0.0
+    divide_factor = 0
+    scale_factor = 1
+
+    width = 640 #depth.size[0]
+    height = 480 #depth.size[1]
+
+    for v in range(height):
+        for u in range(width):
+            #if u > width/6 and u < 5*width/6 and v > height/6 and v < 5*height/6:
+            X = scale_factor*3*u/width
+            Y = scale_factor*3*v/height
+            Z = -3
+            vertex = Vertex(X, Y, Z)
+            points.append(str(vertex))
+            vertices.append(vertex)
+            if X < minx:
+                minx = X
+            if X > maxx:
+                maxx = X
+            if Y < miny:
+                miny = Y
+            if Y > maxy:
+                maxy = Y
+            if Z < minz:
+                minz = Z
+            if Z > maxz:
+                maxz = Z
+
+
+    bounding_box = BoundingBox(minx, miny, minz-1, maxx, maxy, maxz+1)
+
+    indices = []
+    faces = []
+    distanceThreshold = mean_distance*8
+
+    for v in range(height - 1):
+        for u in range(width - 1):
+            #superior triangle
+            triangle = Triangle(v*width + u + 1, v*width + u, (v+1)*width + u )
+            faces.append(triangle)
+            indices.append( str(triangle))
+            #inferior triangle
+            triangle = Triangle( v*width + u + 1 , (v+1)*width + u, (v+1)*width + u + 1 )
+            faces.append(triangle)
+            indices.append(str(triangle))
+
+    meshfile = open(off_file,"w")
+    meshfile.write('''OFF
+    %d %d 0
+    %s%s
+    '''%(len(points),len(indices), "".join(points), "".join(indices)))
+    meshfile.close()
+
+    points = bounding_box.points()
+    indices = bounding_box.indices()
+    boxfile = open("models/box_plane.off", "w")
     boxfile.write('''OFF
     %d %d 0
     %s%s
