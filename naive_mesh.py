@@ -90,7 +90,7 @@ def generateOFF(rgb_file,depth_file,off_file):
     height = depth.size[1]
     indices = []
     faces = []
-    distanceThreshold = mean_distance*8
+    distanceThreshold = mean_distance*16
     for v in range(height - 1):
         for u in range(width - 1):
             #superior triangle
