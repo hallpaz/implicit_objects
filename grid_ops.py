@@ -5,6 +5,66 @@ from geometry import *
 
 
 SENTINEL_VALUE = 72347
+BIG = 9999999
+
+def write_point_cloud(vertices, filename):
+    points = [str(v) for v in vertices]
+    with open(filename, "w") as pcfile:
+        pcfile.write(
+        '''ply
+        format ascii 1.0
+        element vertex %d
+        property float x
+        property float y
+        property float z
+        end_header
+        %s
+        '''%(len(points),"".join(points)))
+
+def read_OFF(off_file):
+    vertexBuffer = []
+    indexBuffer = []
+    with open(off_file, "r") as modelfile:
+        first = modelfile.readline().strip()
+        if first != "OFF":
+            raise(Exception("not a valid OFF file ({})".format(first)))
+
+        parameters = modelfile.readline().strip().split()
+        min_distance = BIG
+        minx = BIG
+        miny = BIG
+        minz = BIG
+        maxx = -BIG
+        maxy = -BIG
+        maxz = -BIG
+
+        if len(parameters) < 2:
+            raise(Exception("OFF file has invalid number of parameters"))
+
+        for i in range(int(parameters[0])):
+            coordinates = modelfile.readline().split()
+            X, Y, Z = float(coordinates[0]), float(coordinates[1]), float(coordinates[2])
+            vertexBuffer.append(Vertex(X, Y, Z))
+            if X < minx:
+                minx = X
+            if X > maxx:
+                maxx = X
+            if Y < miny:
+                miny = Y
+            if Y > maxy:
+                maxy = Y
+            if Z < minz:
+                minz = Z
+            if Z > maxz:
+                maxz = Z
+
+        for i in range(int(parameters[1])):
+            indices = modelfile.readline().split()
+            indexBuffer.append(Triangle(int(indices[1]), int(indices[2]), int(indices[3])))
+
+        bounding_box = BoundingBox(minx, miny, minz-1, maxx, maxy, maxz+1)
+
+    return vertexBuffer, indexBuffer, bounding_box
 
 def make_grid(box_volume, max_cells):
 
@@ -50,16 +110,7 @@ def cell_for_indices(grid, indices):
     k = indices[0]
     j = indices[1]
     i = indices[2]
-    # vertices = [
-    #     grid[k+1][j+1][i],
-    #     grid[k+1][j+1][i+1],
-    #     grid[k][j+1][i+1],
-    #     grid[k][j+1][i],
-    #     grid[k+1][j][i],
-    #     grid[k+1][j][i+1],
-    #     grid[k][j][i+1],
-    #     grid[k][j][i]
-    # ]
+
     vertices = [
         grid[k+1][j][i],
         grid[k+1][j][i+1],
@@ -92,21 +143,18 @@ def possible_intersection(vertex, min_corner, cell_dimension):
             ]
 
 
-def assing_values(grid, vertexBuffer, indicesBuffer, min_corner, cell_dimension):
+def assing_values(grid, vertexBuffer, indicesBuffer, min_corner, cell_dimension, filename = None):
 
-    inter_points = []
     chosen_pairs = set([])
+    inter_points = []
     for face in indicesBuffer:
         voxels_indices = []
-        #print(face)
         triangle = (vertexBuffer[face.a], vertexBuffer[face.b], vertexBuffer[face.c])
         voxels_indices.extend(possible_intersection(triangle[0], min_corner, cell_dimension))
         voxels_indices.extend(possible_intersection(triangle[1], min_corner, cell_dimension))
         voxels_indices.extend(possible_intersection(triangle[2], min_corner, cell_dimension))
 
         voxels_indices = set(voxels_indices)
-
-        #chosen_pairs = chosen_pairs.union(voxels_indices)
 
         normal = compute_normal(triangle)
         for indices in voxels_indices:
@@ -120,36 +168,20 @@ def assing_values(grid, vertexBuffer, indicesBuffer, min_corner, cell_dimension)
                 continue
 
             intersection_point = moller_triangle_intersection(point, point + Vertex(0, 0, 7), triangle, normal)
-            #intersection_point = ray_plane_intersection(point, point + Vertex(0, 0, 7), triangle[0], normal)
+            if filename is not None:
+                inter_points.append(intersection_point)
             if intersection_point is not None:
                 chosen_pairs.add(indices)
-                #d1 = intersection_point.z - point.z
-                #d2 = Vertex.distance(intersection_point, point)
-                #print(d1, d2)
 
-                inter_points.append("%f %f %f\n"%(intersection_point.x,intersection_point.y,intersection_point.z))
                 point.value = (intersection_point.z - point.z)
                 #print("intersection:", intersection_point)
                 for k in range(1, len(grid)):
                     p = grid[k][indices[1]][indices[0]]
                     p.value = (intersection_point.z - p.z)
                     #break
-    inter_file = open("inter_points_moller.ply","w")
-    inter_file.write('''ply
-format ascii 1.0
-element vertex %d
-property float x
-property float y
-property float z
-end_header
-%s
-'''%(len(inter_points),"".join(inter_points)))
-    inter_file.close()
 
-    print("all grid points values computed")
-
-    remaining_pairs = [(j, i) for j in range(len(grid[0])) for i in range(len(grid[0][0])) if (j, i) not in chosen_pairs]
-    print(remaining_pairs)
+    if filename is not None:
+        write_point_cloud(inter_points, filename)
 
     return grid
 

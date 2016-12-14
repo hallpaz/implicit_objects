@@ -536,8 +536,46 @@ def cube_test():
     '''%(len(points),len(indices), "".join(points), "".join(indices)))
     meshfile.close()
 
+def using_off():
+    vertexBuffer, indexBuffer, box_volume = grid_ops.read_OFF("models/simplified_vase.off")
+
+    grid, dimension = grid_ops.make_grid(box_volume, 400)
+
+    grid_ops.assing_values(grid, vertexBuffer, indexBuffer, box_volume.min_corner, dimension)
+    #grid_ops.assing_all_values(grid, vertexBuffer, indexBuffer, box_volume.min_corner, dimension)
+
+    vertices = []
+    triangles = []
+
+    flag = False
+    for k in range(len(grid)-1):
+        print("K:", k)
+        for j in range(len(grid[0])-1):
+            for i in range(len(grid[0][0])-1):
+                cell = grid_ops.cell_for_indices(grid, (k, j, i))
+                for vertex in cell.vertices:
+                    if vertex.value == grid_ops.SENTINEL_VALUE:
+                        flag = True
+                        break
+                if(flag):
+                    flag = False
+                    continue
+                polygonise_cube(cell, 0, vertices, triangles)
+
+    points = [str(i) for i in vertices]
+    indices = [str(i) for i in triangles]
+
+    meshfile = open("simplified400_moller.off","w")
+    meshfile.write(
+    '''OFF
+    %d %d 0
+    %s%s
+    '''%(len(points),len(indices), "".join(points), "".join(indices)))
+    meshfile.close()
+
 if __name__ == '__main__':
-    main()
+    using_off()
+    #main()
     #poly_function()
     #cube_test()
     #plane_test()
