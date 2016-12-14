@@ -105,3 +105,46 @@ def polygonise_cube(cell, isovalue, vertices, triangles):
 
 
     return triangles_count
+
+
+half_size = 3
+#box_volume = BoundingBox(-half_size, -half_size, -half_size, half_size, half_size, half_size)
+
+
+vertexBuffer, indexBuffer, box_volume = generateOFF("images/vase_rgb.jpg", "images/vase_depth.png", "models/myvase.off")
+# l = box_volume.min_corner
+# r = box_volume.max_corner
+# box_volume = BoundingBox(l[0], l[1], l[2], r[0]/2, r[1]/2, r[2]/2)
+grid, dimension = makeGrid(box_volume, 100)
+
+#assign_values(grid, bitorus)
+#assign_values(grid, coeur)
+
+#TEST ONLY!!!!
+#indexBuffer = indexBuffer[0:500]
+##########
+
+
+grid = signed_distance(grid, vertexBuffer, indexBuffer, box_volume.min_corner, dimension)
+#assign_distance_to_grid(grid, vertexBuffer, indexBuffer)
+
+vertices = []
+triangles = []
+# for i in range(len(grid)):
+#     for j in range(len(grid[0])):
+#         for k in range(len(grid[0][0])):
+#             cell = grid[i][j][k]
+#             polygonise_cube(cell, 0, vertices, triangles)
+for cell in grid:
+   polygonise_cube(cell, 0, vertices, triangles)
+
+points = [str(i) for i in vertices]
+indices = [str(i) for i in triangles]
+
+meshfile = open("reconstruction100.off","w")
+meshfile.write(
+'''OFF
+%d %d 0
+%s%s
+'''%(len(points),len(indices), "".join(points), "".join(indices)))
+meshfile.close()

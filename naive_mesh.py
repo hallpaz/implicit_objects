@@ -3,6 +3,7 @@ import sys
 import os
 from PIL import Image
 from DataStructures import Vertex, Triangle, DepthMap, BoundingBox
+import numpy as np
 
 focalLength = 525.0
 centerX = 319.5
@@ -10,6 +11,35 @@ centerY = 239.5
 scalingFactor = 1000.00
 
 BIG = 9999999.99
+# fx = 525.0; fy = 525.0; // default focal length
+# cx = 319.5; cy = 239.5; // default optical center
+# Eigen::Matrix4d Tk; // k-th transformation matrix from trajectory.log
+#
+# // translation from depth pixel (u,v,d) to a point (x,y,z)
+# z = d / 1000.0;
+# x = (u - cx) * z / fx;
+# y = (v - cy) * z / fy;
+#
+# // transform (x,y,z) to (xw,yw,zw)
+# Eigen::Vector4d w = Tk * Eigen::Vector4d(x, y, z, 1);
+# xw = w(0); yw = w(1); zw = w(2);
+#matrix 2343
+# matrix = [[-0.5865089568358111, -0.4016671627616591, 0.7033283258268271, -1.78958890904936],
+# [3.904256506020038e-17, -0.8683679602305977, -0.49592044285847997, 1.2941331133042304],
+# [0.8099427409091144, -0.29086178161448045, 0.5093055865044889, -0.3940599767154947],
+# [0.0, 0.0, 0.0, 1.0]]
+
+#matrix 1991
+# matrix = [[0.5405581528083065, 0.28655525127420545, -0.7910012461429174, 1.405061042371321],
+# [0.0, -0.9402056240170099, -0.3406073759723719, 1.2016302960981653],
+# [-0.8413066524356453, 0.18411809398850973, -0.5082358153786161, 1.7523119096340265],
+# [0.0, 0.0, 0.0, 1.0]]
+
+#matrix2039
+# matrix = [[0.1251551653807354, 0.32596834683277814, -0.9370596680263356, 1.6348786428914903],
+# [-6.5021576180652725e-18, -0.9444859910618658, -0.3285516895221894, 1.1836401989655352],
+# [-0.992137180322621, 0.041119941038269645, -0.11820730041113557, 0.8277766725924591],
+# [0.0, 0.0, 0.0, 1.0]]
 
 def generateOFF(rgb_file,depth_file,off_file):
     """
@@ -51,14 +81,38 @@ def generateOFF(rgb_file,depth_file,off_file):
     width = depth.size[0]
     height = depth.size[1]
 
+    filenumber = int(depth_file[-9:-4])
+    matrix = []
+    with open("stonewall_trajectory.log") as trajfile:
+        number = int(trajfile.readline().split()[2])
+        while number != "":
+            if number == filenumber:
+                matrix_data = []
+                for i in range(4):
+                    matrix_data.append([float(n) for n in trajfile.readline().split()])
+                matrix = np.matrix(matrix_data)
+                break
+            for i in range(4):
+                trajfile.readline()
+            number = int(trajfile.readline().split()[2])
+
     for v in range(rgb.size[1]):
         for u in range(rgb.size[0]):
             #color = rgb.getpixel((u,v))
-            Z = -depth.getpixel((u,v)) / scalingFactor
+            #Z = -depth.getpixel((u,v)) / scalingFactor
+            Z = depth.getpixel((u,v)) / scalingFactor
+            #print(Z)
             if Z==0:
                 continue
-            X = -(u - centerX) * Z / focalLength
+            #X = -(u - centerX) * Z / focalLength
+            X = (u - centerX) * Z / focalLength
             Y = (v - centerY) * Z / focalLength
+
+            vertex = np.array([X, Y, Z, 1])
+            vertex = np.array(matrix*np.transpose(np.matrix(vertex)))
+            vertex.shape = 4
+            #print(vertex)
+            X, Y, Z = vertex[0], vertex[1], vertex[2]
 
             if X < minx:
                 minx = X
@@ -94,7 +148,8 @@ def generateOFF(rgb_file,depth_file,off_file):
 
     indices = []
     faces = []
-    distanceThreshold = mean_distance*8
+    # distanceThreshold = mean_distance*20
+    distanceThreshold = min_distance
 
     for v in range(height - 1):
         for u in range(width - 1):
