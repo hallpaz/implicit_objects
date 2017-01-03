@@ -41,6 +41,11 @@ BIG = 9999999.99
 # [-0.992137180322621, 0.041119941038269645, -0.11820730041113557, 0.8277766725924591],
 # [0.0, 0.0, 0.0, 1.0]]
 
+matrix = [[-0.66051,    0.75076,    0.00953,   19.21104]
+[-0.75067,   -0.66057,    0.01196,   62.97114]
+[0.01527,    0.00074,    0.99988,   -1.83697]
+[0.00000,    0.00000,    0.00000,    1.00000]]
+
 def generateOFF(rgb_file,depth_file,off_file):
     """
     Generate a colored point cloud in PLY format from a color and a depth image.
@@ -82,19 +87,19 @@ def generateOFF(rgb_file,depth_file,off_file):
     height = depth.size[1]
 
     filenumber = int(depth_file[-9:-4])
-    matrix = []
-    with open("stonewall_trajectory.log") as trajfile:
-        number = int(trajfile.readline().split()[2])
-        while number != "":
-            if number == filenumber:
-                matrix_data = []
-                for i in range(4):
-                    matrix_data.append([float(n) for n in trajfile.readline().split()])
-                matrix = np.matrix(matrix_data)
-                break
-            for i in range(4):
-                trajfile.readline()
-            number = int(trajfile.readline().split()[2])
+    # matrix = []
+    # with open("stonewall_trajectory.log") as trajfile:
+    #     number = int(trajfile.readline().split()[2])
+    #     while number != "":
+    #         if number == filenumber:
+    #             matrix_data = []
+    #             for i in range(4):
+    #                 matrix_data.append([float(n) for n in trajfile.readline().split()])
+    #             matrix = np.matrix(matrix_data)
+    #             break
+    #         for i in range(4):
+    #             trajfile.readline()
+    #         number = int(trajfile.readline().split()[2])
 
     for v in range(rgb.size[1]):
         for u in range(rgb.size[0]):
@@ -109,7 +114,7 @@ def generateOFF(rgb_file,depth_file,off_file):
             Y = (v - centerY) * Z / focalLength
 
             vertex = np.array([X, Y, Z, 1])
-            vertex = np.array(matrix*np.transpose(np.matrix(vertex)))
+            # vertex = np.array(matrix*np.transpose(np.matrix(vertex)))
             vertex.shape = 4
             #print(vertex)
             X, Y, Z = vertex[0], vertex[1], vertex[2]
